@@ -4,8 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#00040e">
-  <title>JIVESHOOTER V4</title>
-  <link rel="stylesheet" href="style-v4-20260811.css">
+  <meta name="jiveshooter-build" content="V5-PAGES-FIX-20260811">
+  <title>JIVESHOOTER</title>
+  <link rel="stylesheet" href="./style-v4-20260811.css?v=5-pages-fix-20260811">
+  <style>
+    #pagesBuildMarker{position:fixed;right:6px;bottom:4px;z-index:2147483647;font:9px monospace;color:rgba(170,255,255,.28);pointer-events:none;user-select:none}
+  </style>
 </head>
 <body>
   <main id="gameShell">
@@ -23,7 +27,7 @@
         Arrow keys or A/D move. Space fires. P pauses.
         Mouse and touch also work.
       </small>
-      <div id="status">Loading JIVESHOOTER assets...</div>
+      <div id="status">Loading JIVESHOOTER V5 assets...</div>
       <div class="buttons">
         <button id="restart" type="button">Restart</button>
         <button id="pause" type="button">Pause</button>
@@ -37,6 +41,7 @@
     </section>
   </main>
 
-  <script src="game-v4-20260811.js"></script>
+  <div id="pagesBuildMarker">V5 PAGES FIX</div>
+  <script src="./game-v4-20260811.js?v=5-pages-fix-20260811"></script>
 </body>
 </html>
