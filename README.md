@@ -1,57 +1,18 @@
-# JIVESHOOTER Galaga-style build
+# JIVESHOOTER V4 GLOW SYNC
 
-This version keeps the visual language of the original JIVESHOOTER bookmarklet and replaces the random enemy flow with formation-based arcade logic.
+This build deliberately uses unique asset filenames so GitHub Pages/browser cache cannot silently reuse V2/V3 JavaScript.
 
-## Files
+Files loaded by index.html:
+- style-v4-20260811.css
+- game-v4-20260811.js
 
-- `index.html`
-- `style.css`
-- `game.js`
+Visible runtime marker: `V4-GLOW-SYNC-20260811`
 
-## Existing JIVESHOOTER graphics used
-
-The page loads the same externally hosted player ship, JIVESHOOTER logo and level overlay used by the bookmarklet:
-
-- `https://i.postimg.cc/T2sMCYPC/spaceship.png`
-- `https://i.postimg.cc/7h9pMnYV/JIVESHOOTER.png`
-- `https://i.postimg.cc/Bb0wrNCk/new.png`
-
-## Gameplay
-
-- Enemy squadrons enter in curved formations.
-- The formation sweeps left and right.
-- Enemies periodically dive out of formation and attack the player.
-- Diving enemies fire aimed shots.
-- Formation enemies also fire.
-- The player can have two shots active at once.
-- Boss enemies take two hits.
-- Clear all enemies to start the next wave.
-- Difficulty rises per wave.
-- Five lives.
-
-## Controls
-
-- Left / Right or A / D: move
-- Space: fire
-- P: pause
-- R: restart
-- Mouse / touch: move and fire
-
-## GitHub Pages
-
-1. Put all three main files in the root of a GitHub repository.
-2. Open repository Settings.
-3. Open Pages.
-4. Set deployment to the branch containing these files and choose `/root`.
-5. Open the Pages URL after GitHub publishes it.
-
-No build step or package manager is required.
-
-## Note
-
-The formation gameplay is a fresh implementation based on the behavior requested. It does not require any code or image assets from the referenced Galaga5 repository.
-
-
-## V3 correction
-
-This version deliberately returns to the original JIVESHOOTER enemy rendering concept. Enemies are luminous shader entities, not little icon ships. The strong colored core, halo, ring and persistent trail are retained. Performance is improved by using only 12 enemies, a smaller glow buffer and a 9 tap feedback blur. Formation movement and dive attacks are synchronized and much faster.
+Gameplay changes:
+- 10 enemies total, 2 rows of 5
+- original strong colored shader glow retained
+- no enemy icon drawing when WebGL is active
+- synchronized formation sweep and grouped entry
+- one diver per attack in early waves, maximum two later
+- sparse enemy bullets
+- optimized 9-tap feedback blur for performance
