@@ -50,3 +50,16 @@ No build step or package manager is required.
 ## Note
 
 The formation gameplay is a fresh implementation based on the behavior requested. It does not require any code or image assets from the referenced Galaga5 repository.
+
+## V2 gameplay and performance changes
+
+- Enemies are around half the previous visual size.
+- Enemies now remain crisp separate neon craft instead of being represented only by WebGL glow.
+- Bloom radius and white core intensity are reduced strongly.
+- WebGL blur drops from 64 texture reads per pixel to 9 taps.
+- Glow buffer resolution is reduced from 36% to 24% of display resolution.
+- Enemy formation moves as one synchronized block.
+- Entry is grouped in four ship squads and happens much faster.
+- Dive attacks alternate left and right and launch 2 to 4 enemies as synchronized squads.
+- Dive and return curves are faster.
+- Star count and active glow point count are reduced for smoother animation.

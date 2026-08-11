@@ -162,7 +162,7 @@
       });
 
       this.available = !!this.gl;
-      this.maxPoints = 76;
+      this.maxPoints = 58;
       this.points = new Float32Array(this.maxPoints * 4);
       this.colors = new Float32Array(this.maxPoints * 3);
       this.tw = 96;
@@ -210,17 +210,17 @@
         }
 
         vec3 blurTex(vec2 uv) {
-          vec3 col = vec3(0.0);
-          float acc = 0.0;
-          for (int x = -4; x < 4; x++) {
-            for (int y = -4; y < 4; y++) {
-              vec2 off = vec2(float(x), float(y));
-              float w = gauss(off);
-              col += texture2D(u_buffer, uv + u_texel * .98 * off).rgb * w;
-              acc += w;
-            }
-          }
-          return col / max(acc, .0001);
+          vec2 t = u_texel * 1.35;
+          vec3 col = texture2D(u_buffer, uv).rgb * .28;
+          col += texture2D(u_buffer, uv + vec2(t.x, 0.0)).rgb * .12;
+          col += texture2D(u_buffer, uv - vec2(t.x, 0.0)).rgb * .12;
+          col += texture2D(u_buffer, uv + vec2(0.0, t.y)).rgb * .12;
+          col += texture2D(u_buffer, uv - vec2(0.0, t.y)).rgb * .12;
+          col += texture2D(u_buffer, uv + t).rgb * .06;
+          col += texture2D(u_buffer, uv - t).rgb * .06;
+          col += texture2D(u_buffer, uv + vec2(t.x, -t.y)).rgb * .06;
+          col += texture2D(u_buffer, uv + vec2(-t.x, t.y)).rgb * .06;
+          return col;
         }
 
         void main() {
@@ -231,7 +231,7 @@
             vec2 sampleUV = .982 * (uv - origin) + origin;
             sampleUV += vec2(sin((u_time + uv.y * .5) * 10.0) * .0010, -.00018);
 
-            vec3 tex = blurTex(sampleUV) * .935;
+            vec3 tex = blurTex(sampleUV) * .78;
             vec3 add = vec3(0.0);
             float asp = u_resolution.x / u_resolution.y;
 
@@ -243,13 +243,13 @@
               float d = length(q);
               float r = max(p.z, .001);
               float core = smoothstep(r, 0.0, d);
-              float halo = smoothstep(r * 3.7, 0.0, d) * .22;
+              float halo = smoothstep(r * 2.65, 0.0, d) * .13;
               float ring = smoothstep(r * .36, 0.0, abs(d - r * 1.42)) * .075;
               float pulse = .90 + .10 * sin(u_time * 9.0 + float(i) * 1.73);
               vec3 c = u_cols[i];
 
-              add += c * (core * 1.18 + halo + ring) * p.w * pulse;
-              add += vec3(1.0) * pow(core, 5.0) * .38 * p.w;
+              add += c * (core * .88 + halo + ring * .55) * p.w * pulse;
+              add += vec3(1.0) * pow(core, 6.0) * .13 * p.w;
             }
 
             tex += add;
@@ -265,9 +265,9 @@
               smoothstep(.02, .46, tex.b)
             );
 
-            vec3 col = tex * 1.06 + cut * .58;
+            vec3 col = tex * .92 + cut * .27;
             col = pow(max(col, 0.0), vec3(.84));
-            float a = clamp(max(max(col.r, col.g), col.b) * 1.05, 0.0, 1.0);
+            float a = clamp(max(max(col.r, col.g), col.b) * .82, 0.0, 1.0);
             gl_FragColor = vec4(col, a);
           }
         }
@@ -344,8 +344,8 @@
       this.canvas.style.width = `${width}px`;
       this.canvas.style.height = `${height}px`;
 
-      this.tw = Math.max(96, Math.floor(width * pixelRatio * .36));
-      this.th = Math.max(96, Math.floor(height * pixelRatio * .36));
+      this.tw = Math.max(96, Math.floor(width * pixelRatio * .24));
+      this.th = Math.max(96, Math.floor(height * pixelRatio * .24));
 
       if (this.src) {
         gl.deleteTexture(this.src.tex);
@@ -452,7 +452,8 @@
     invulnerable: 0,
     shootCooldown: 0,
     formationTime: 0,
-    diveTimer: 2.3,
+    attackCycle: 0,
+    diveTimer: 1.35,
     enemyShotTimer: 1.5,
     waveFlash: 0,
     waveDelay: 0,
@@ -508,7 +509,7 @@
 
   function createStars() {
     stars.length = 0;
-    const count = Math.round(clamp(vw * vh / 9000, 70, 130));
+    const count = Math.round(clamp(vw * vh / 13000, 48, 88));
     for (let i = 0; i < count; i++) {
       stars.push({
         x: Math.random() * vw,
@@ -529,7 +530,7 @@
       this.index = index;
       this.alive = true;
       this.mode = "enter";
-      this.entryDelay = index * .075 + row * .12;
+      this.entryDelay = Math.floor(index / 4) * .085 + row * .025;
       this.entryT = 0;
       this.returnT = 0;
       this.diveT = 0;
@@ -538,7 +539,7 @@
       this.color = PALETTE[(row * 2 + col + state.wave - 1) % PALETTE.length];
       this.type = row === 0 ? "boss" : (row === 1 ? "wing" : "drone");
       this.hp = this.type === "boss" ? 2 : 1;
-      this.radius = this.type === "boss" ? 22 : this.type === "wing" ? 18 : 16;
+      this.radius = this.type === "boss" ? 10.5 : this.type === "wing" ? 8.5 : 7.5;
       this.x = vw / 2;
       this.y = -80;
       this.angle = 0;
@@ -549,17 +550,16 @@
     }
 
     slotPosition(now) {
-      const horizontalSpacing = clamp(vw / 11, 48, 78);
-      const verticalSpacing = clamp(vh / 14, 43, 58);
+      const horizontalSpacing = clamp(vw / 15.4, 31, 45);
+      const verticalSpacing = clamp(vh / 21, 27, 35);
       const width = horizontalSpacing * (this.cols - 1);
 
-      const formationShift =
-        Math.sin(state.formationTime * .72) *
-        Math.min(74, Math.max(24, (vw - width - 80) * .38));
+      const sharedSweep = Math.sin(state.formationTime * 1.78) * Math.min(38, Math.max(15, (vw - width - 60) * .19));
+      const sharedBob = Math.sin(state.formationTime * 3.15) * 1.8;
+      const edgeArc = Math.abs(this.col - (this.cols - 1) * .5) * 1.15;
 
-      const waveBreath = Math.sin(state.formationTime * 1.8 + this.row * .7) * 4;
-      const x = vw / 2 - width / 2 + this.col * horizontalSpacing + formationShift;
-      const y = clamp(112 + this.row * verticalSpacing, 92, vh * .42) + waveBreath;
+      const x = vw / 2 - width / 2 + this.col * horizontalSpacing + sharedSweep;
+      const y = clamp(92 + this.row * verticalSpacing, 82, vh * .34) + sharedBob + edgeArc;
       return { x, y };
     }
 
@@ -572,21 +572,23 @@
           return;
         }
 
-        this.entryT += dt * (.62 + Math.min(.28, state.wave * .012));
+        this.entryT += dt * (1.16 + Math.min(.34, state.wave * .014));
         const t = clamp(this.entryT, 0, 1);
         const e = easeInOut(t);
         const slot = this.slotPosition(now);
 
-        const side = this.index % 2 === 0 ? -1 : 1;
-        const startX = vw / 2 + side * Math.min(vw * .45, 420);
-        const startY = -80 - (this.index % 5) * 24;
-        const controlX = vw / 2 - side * Math.min(170, vw * .19);
-        const controlY = clamp(vh * .24, 120, 260);
+        const group = Math.floor(this.index / 4);
+        const side = group % 2 === 0 ? -1 : 1;
+        const lane = this.index % 4;
+        const startX = vw / 2 + side * Math.min(vw * .27, 220) + (lane - 1.5) * 16;
+        const startY = -42 - lane * 12;
+        const controlX = vw / 2 - side * Math.min(88, vw * .10);
+        const controlY = clamp(vh * .17, 78, 135);
 
         const omt = 1 - e;
         this.x = omt * omt * startX + 2 * omt * e * controlX + e * e * slot.x;
         this.y = omt * omt * startY + 2 * omt * e * controlY + e * e * slot.y;
-        this.angle = Math.sin(t * Math.PI) * side * 1.55;
+        this.angle = Math.sin(t * Math.PI) * side * 1.15;
 
         if (t >= 1) {
           this.mode = "formation";
@@ -606,6 +608,10 @@
       }
 
       if (this.mode === "dive") {
+        if (this.diveT < 0) {
+          this.diveT += dt;
+          return;
+        }
         this.diveT += dt / this.diveDuration;
         const t = this.diveT;
         const side = this.diveTarget.x < this.diveStart.x ? -1 : 1;
@@ -614,10 +620,10 @@
           const p = clamp(t, 0, 1);
           const omt = 1 - p;
 
-          const c1x = this.diveStart.x + side * 170;
-          const c1y = this.diveStart.y + 95;
-          const c2x = this.diveTarget.x - side * 150;
-          const c2y = vh * .66;
+          const c1x = this.diveStart.x + side * 112;
+          const c1y = this.diveStart.y + 74;
+          const c2x = this.diveTarget.x - side * 92;
+          const c2y = vh * .62;
 
           this.x =
             omt * omt * omt * this.diveStart.x +
@@ -658,7 +664,7 @@
       }
 
       if (this.mode === "return") {
-        this.returnT += dt * .72;
+        this.returnT += dt * 1.08;
         const t = clamp(this.returnT, 0, 1);
         const e = easeInOut(t);
         const slot = this.slotPosition(now);
@@ -680,15 +686,16 @@
       }
     }
 
-    startDive() {
+    startDive(delay = 0, targetOffset = 0) {
       if (!this.alive || this.mode !== "formation") return false;
       this.mode = "dive";
-      this.diveT = 0;
-      this.diveDuration = Math.max(1.25, 2.18 - state.wave * .035);
+      this.diveT = -delay;
+      this.diveDuration = Math.max(1.02, 1.52 - state.wave * .018);
       this.diveStart = { x: this.x, y: this.y };
+      const side = this.x < vw * .5 ? -1 : 1;
       this.diveTarget = {
-        x: clamp(player.x + rand(-120, 120), 40, vw - 40),
-        y: vh + 90
+        x: clamp(player.x + side * 42 + targetOffset, 32, vw - 32),
+        y: vh + 68
       };
       this.shotLatch = false;
       return true;
@@ -729,7 +736,8 @@
     }
 
     state.formationTime = 0;
-    state.diveTimer = Math.max(1.0, 2.6 - state.wave * .06);
+    state.attackCycle = 0;
+    state.diveTimer = Math.max(.72, 1.28 - state.wave * .018);
     state.enemyShotTimer = 1.2;
     state.waveDelay = 0;
     state.waveFlash = 1.55;
@@ -755,7 +763,7 @@
   }
 
   function fireEnemyBullet(enemy, aimed = false) {
-    if (!enemy || !enemy.alive || enemyBullets.length > 10 + Math.min(8, state.wave)) return;
+    if (!enemy || !enemy.alive || enemyBullets.length > 5 + Math.min(4, state.wave)) return;
 
     let angle;
     if (aimed) {
@@ -777,18 +785,30 @@
   }
 
   function pickDiver() {
-    const ready = enemies.filter(e => e.alive && e.mode === "formation");
+    const ready = enemies.filter(e => e.alive && e.mode === "formation" && e.row <= 2);
     if (!ready.length) return;
 
-    const frontRows = ready.filter(e => e.row <= 2);
-    const pool = frontRows.length ? frontRows : ready;
-    pool[(Math.random() * pool.length) | 0].startDive();
+    state.attackCycle++;
+    const cols = ready[0].cols;
+    const center = (cols - 1) * .5;
+    const attackFromLeft = state.attackCycle % 2 === 1;
+    const preferredCol = center + (attackFromLeft ? -2.15 : 2.15);
 
-    if (state.wave >= 4 && Math.random() < Math.min(.52, state.wave * .055)) {
-      const second = ready.filter(e => e.mode === "formation");
-      if (second.length) second[(Math.random() * second.length) | 0].startDive();
-    }
+    ready.sort((a, b) => {
+      const da = Math.abs(a.col - preferredCol) + a.row * .18;
+      const db = Math.abs(b.col - preferredCol) + b.row * .18;
+      return da - db;
+    });
+
+    const groupSize = state.wave >= 5 ? 4 : state.wave >= 3 ? 3 : 2;
+    const squad = ready.slice(0, Math.min(groupSize, ready.length));
+    const spread = (squad.length - 1) * .5;
+
+    squad.forEach((enemy, i) => {
+      enemy.startDive(i * .065, (i - spread) * 24);
+    });
   }
+
 
   function updateHud() {
     scoreEl.textContent = state.score;
@@ -867,13 +887,13 @@
 
     if (state.diveTimer <= 0) {
       pickDiver();
-      state.diveTimer = Math.max(.75, 2.75 - state.wave * .075) * rand(.78, 1.18);
+      state.diveTimer = Math.max(.66, 1.34 - state.wave * .022);
     }
 
     if (state.enemyShotTimer <= 0) {
       const shooters = enemies.filter(e => e.alive && e.mode === "formation" && e.y < vh * .58);
       if (shooters.length) fireEnemyBullet(shooters[(Math.random() * shooters.length) | 0], false);
-      state.enemyShotTimer = Math.max(.58, 1.85 - state.wave * .055) * rand(.76, 1.22);
+      state.enemyShotTimer = Math.max(.72, 1.58 - state.wave * .03);
     }
 
     for (const bullet of bullets) {
@@ -1036,52 +1056,83 @@
   }
 
   function drawEnemy(enemy, now) {
-    if (!enemy.alive || enemy.entryDelay > 0 || glow.available) return;
+    if (!enemy.alive || enemy.entryDelay > 0) return;
 
     const c = enemy.color;
-    const pulse = .88 + .12 * Math.sin(now * .009 + enemy.seed);
+    const pulse = .90 + .10 * Math.sin(now * .010 + enemy.seed);
+    const scale = enemy.type === "boss" ? .82 : enemy.type === "wing" ? .70 : .62;
 
     ctx.save();
+    ctx.translate(enemy.x, enemy.y);
+    ctx.rotate(enemy.angle);
     ctx.globalCompositeOperation = "lighter";
 
-    const halo = ctx.createRadialGradient(
-      enemy.x, enemy.y, 1,
-      enemy.x, enemy.y, enemy.radius * 2.8
-    );
-    halo.addColorStop(0, "rgba(255,255,255,.98)");
-    halo.addColorStop(.18, rgba(c, .92 * pulse));
-    halo.addColorStop(.52, rgba(c, .30 * pulse));
+    const halo = ctx.createRadialGradient(0, 0, 1, 0, 0, enemy.radius * 2.05);
+    halo.addColorStop(0, rgba(c, .30 * pulse));
+    halo.addColorStop(.38, rgba(c, .14 * pulse));
     halo.addColorStop(1, rgba(c, 0));
-
     ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, enemy.radius * 2.8, 0, TAU);
+    ctx.arc(0, 0, enemy.radius * 2.05, 0, TAU);
     ctx.fill();
 
-    ctx.fillStyle = "rgba(255,255,255,.95)";
+    ctx.shadowColor = rgba(c, .92);
+    ctx.shadowBlur = 5;
+    ctx.fillStyle = rgba(c, .72);
+    ctx.strokeStyle = rgba(c, .96);
+    ctx.lineWidth = 1.0;
+
     ctx.beginPath();
-    ctx.arc(enemy.x, enemy.y, enemy.type === "boss" ? 4.8 : 3.1, 0, TAU);
+    ctx.moveTo(0, -15 * scale);
+    ctx.lineTo(7.5 * scale, -4 * scale);
+    ctx.lineTo(14 * scale, 1 * scale);
+    ctx.lineTo(8 * scale, 4 * scale);
+    ctx.lineTo(11 * scale, 12 * scale);
+    ctx.lineTo(2.5 * scale, 7 * scale);
+    ctx.lineTo(0, 13 * scale);
+    ctx.lineTo(-2.5 * scale, 7 * scale);
+    ctx.lineTo(-11 * scale, 12 * scale);
+    ctx.lineTo(-8 * scale, 4 * scale);
+    ctx.lineTo(-14 * scale, 1 * scale);
+    ctx.lineTo(-7.5 * scale, -4 * scale);
+    ctx.closePath();
     ctx.fill();
+    ctx.stroke();
+
+    ctx.shadowBlur = 3;
+    ctx.fillStyle = `rgba(255,255,255,${.70 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(0, -1.5 * scale, enemy.type === "boss" ? 2.5 : 1.8, 0, TAU);
+    ctx.fill();
+
+    if (enemy.type === "boss") {
+      ctx.strokeStyle = rgba(c, .85);
+      ctx.lineWidth = .8;
+      ctx.beginPath();
+      ctx.arc(0, -1.5 * scale, 5.3, 0, TAU);
+      ctx.stroke();
+    }
 
     ctx.restore();
   }
+
 
   function drawBullets() {
     ctx.save();
     ctx.globalCompositeOperation = "lighter";
 
     for (const b of bullets) {
-      ctx.shadowBlur = 18;
+      ctx.shadowBlur = 9;
       ctx.shadowColor = "rgba(90,235,255,.95)";
       ctx.fillStyle = "rgba(220,255,255,.98)";
-      ctx.fillRect(b.x - 2.4, b.y - 14, 4.8, 24);
+      ctx.fillRect(b.x - 1.7, b.y - 11, 3.4, 19);
 
       ctx.fillStyle = "rgba(40,190,255,.45)";
-      ctx.fillRect(b.x - 4.5, b.y + 4, 9, 24);
+      ctx.fillRect(b.x - 3.1, b.y + 3, 6.2, 17);
     }
 
     for (const b of enemyBullets) {
-      ctx.shadowBlur = 16;
+      ctx.shadowBlur = 8;
       ctx.shadowColor = rgba(b.color, .95);
       ctx.fillStyle = rgba(b.color, .90);
       ctx.beginPath();
@@ -1206,32 +1257,29 @@
   function collectGlowPoints() {
     const points = [];
 
+    let enemyGlowCount = 0;
     for (const enemy of enemies) {
       if (!enemy.alive || enemy.entryDelay > 0) continue;
+      if ((enemy.index + state.wave) % 2 !== 0 && enemy.mode === "formation") continue;
       points.push({
         x: enemy.x,
         y: enemy.y,
-        r: enemy.radius * (enemy.type === "boss" ? 1.05 : .82),
-        intensity: enemy.type === "boss" ? 1.10 : .82,
+        r: enemy.radius * .42,
+        intensity: enemy.type === "boss" ? .34 : .23,
         color: enemy.color
       });
-
-      points.push({
-        x: enemy.x + Math.sin(performance.now() / 330 + enemy.seed) * enemy.radius * .42,
-        y: enemy.y + Math.cos(performance.now() / 410 + enemy.seed) * enemy.radius * .24,
-        r: enemy.radius * .38,
-        intensity: .42,
-        color: enemy.color
-      });
+      enemyGlowCount++;
+      if (enemyGlowCount >= 18) break;
     }
 
+
     for (const b of bullets) {
-      points.push({ x: b.x, y: b.y, r: 4.7, intensity: 1.24, color: b.color });
-      points.push({ x: b.x, y: b.y + 14, r: 3.4, intensity: .46, color: [0.18, .8, 1] });
+      points.push({ x: b.x, y: b.y, r: 3.0, intensity: .72, color: b.color });
+      points.push({ x: b.x, y: b.y + 11, r: 2.0, intensity: .23, color: [0.18, .8, 1] });
     }
 
     for (const b of enemyBullets) {
-      points.push({ x: b.x, y: b.y, r: 5.5, intensity: .92, color: b.color });
+      points.push({ x: b.x, y: b.y, r: 3.1, intensity: .44, color: b.color });
     }
 
     for (const blast of blasts) {

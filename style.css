@@ -44,7 +44,7 @@ body {
   z-index: 2;
   pointer-events: none;
   mix-blend-mode: screen;
-  filter: saturate(1.45) contrast(1.16) brightness(1.05);
+  filter: saturate(1.25) contrast(1.08) brightness(.94);
 }
 
 #hud {
